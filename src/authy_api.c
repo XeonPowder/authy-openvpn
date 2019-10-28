@@ -211,13 +211,13 @@ tokenResponseIsValid(char *pszResponse)
 // Standard RESULT
 //
 RESULT
-doHttpRequest(char *pszResultUrl, char *pszPostFields, char *pszResponse)
+doHttpRequest(char *pszResultUrl, char *pszPostFields, char *pszResponse, char *pszApiKey)
 {
   RESULT r = FAIL;
   CURL *pCurl = NULL;
   int curlResult = -1;
   char *pszUserAgent = NULL;
-
+  struct curl_slist* headers = NULL; // header for X-Authy-API-Key
   pszUserAgent = getUserAgent();
   if(NULL == pszUserAgent)
   {
@@ -258,7 +258,9 @@ doHttpRequest(char *pszResultUrl, char *pszPostFields, char *pszResponse)
   curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, curlWriter);
   curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, pszResponse);
   curl_easy_setopt(pCurl, CURLOPT_USERAGENT, pszUserAgent);
-
+  
+  headers = curl_slist_append(headers, "X-Authy-API-Key: " + pszApiKey);
+  curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, headers);
   curlResult = (int) curl_easy_perform(pCurl);
   if(0 != curlResult) {
     trace(ERROR, __LINE__, "Curl failed with code %d", curlResult);
@@ -325,7 +327,7 @@ registerUser(const char *pszApiUrl,
     goto EXIT;
   }
 
-  r = doHttpRequest(pszResultUrl, pszPostFields, pszResponse);
+  r = doHttpRequest(pszResultUrl, pszPostFields, pszResponse, pszApiKey);
 
   // Clean memory used in the request
   cleanAndFree(pszResultUrl);
@@ -395,7 +397,7 @@ verifyToken(const char *pszApiUrl,
     goto EXIT;
   }
 
-  r = doHttpRequest(pszResultUrl, NULL, pszResponse); //GET request, postFields are NULL
+  r = doHttpRequest(pszResultUrl, NULL, pszResponse, pszApiKey); //GET request, postFields are NULL
 
   if(FAILED(r)) {
     trace(INFO, __LINE__, "[Authy] Token request verification failed.\n");
@@ -471,7 +473,7 @@ sendTokenToUser(const char *pszApiUrl,
   }
 
   trace(INFO, __LINE__, "[Authy] Requesting %sfor Authy ID\n", pszVia, pszAuthyId);
-  r = doHttpRequest(pszResultUrl, NULL, pszResponse);
+  r = doHttpRequest(pszResultUrl, NULL, pszResponse, pszApiKey);
 
 EXIT:
   cleanAndFree(pszResultUrl);
